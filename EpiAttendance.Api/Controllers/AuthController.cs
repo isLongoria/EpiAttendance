@@ -1,6 +1,7 @@
 using EpiAttendance.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 using EpiAttendance.Api.DTOs;
 
@@ -19,6 +20,7 @@ public class AuthController : ControllerBase
         _logger = logger;
     }
 
+    [EnableRateLimiting("auth")]
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponseDTO>> Register([FromBody] RegisterRequestDTO dto)
     {
@@ -37,6 +39,7 @@ public class AuthController : ControllerBase
         }
     }
 
+    [EnableRateLimiting("auth")]
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponseDTO>> Login([FromBody] LoginRequestDTO dto)
     {

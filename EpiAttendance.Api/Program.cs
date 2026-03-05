@@ -1,10 +1,12 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using EpiAttendance.Api.Configuration;
 using EpiAttendance.Api.Data;
 using EpiAttendance.Api.Models;
 using EpiAttendance.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -31,8 +33,8 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     options.Password.RequireDigit = true;
     options.Password.RequireLowercase = true;
     options.Password.RequireUppercase = true;
-    options.Password.RequireNonAlphanumeric = false;
-    options.Password.RequiredLength = 6;
+    options.Password.RequireNonAlphanumeric = true;
+    options.Password.RequiredLength = 8;
     
     // User settings
     options.User.RequireUniqueEmail = true;
@@ -55,7 +57,7 @@ builder.Services.AddAuthentication(options =>
 .AddJwtBearer(options =>
 {
     options.SaveToken = true;
-    options.RequireHttpsMetadata = false; // Set to true in production
+    options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
@@ -120,6 +122,17 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("auth", policy =>
+    {
+        policy.PermitLimit = 10;
+        policy.Window = TimeSpan.FromMinutes(1);
+        policy.QueueLimit = 0;
+    });
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
@@ -136,6 +149,7 @@ app.UseCors("AllowFrontend");
 // IMPORTANT: Authentication must come before Authorization
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapControllers();
 
