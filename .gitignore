@@ -23,6 +23,7 @@ appsettings.*.json
 *.pdf
 *.slnx
 docker-compose.yml
+CLAUDE.md
 
 # OS
 .DS_Store
