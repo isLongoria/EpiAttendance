@@ -17,7 +17,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 
 // Configure JWT settings
-var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
 
 // Configure PostgreSQL with Identity
@@ -56,6 +55,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()!;
     options.SaveToken = true;
     options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
     options.TokenValidationParameters = new TokenValidationParameters
@@ -64,10 +64,10 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings!.Issuer,
+        ValidIssuer = jwtSettings.Issuer,
         ValidAudience = jwtSettings.Audience,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SecretKey)),
-        ClockSkew = TimeSpan.Zero // Remove delay of token when expire
+        ClockSkew = TimeSpan.Zero
     };
 });
 
@@ -122,16 +122,19 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddRateLimiter(options =>
+if (!builder.Environment.IsEnvironment("Testing"))
 {
-    options.AddFixedWindowLimiter("auth", policy =>
+    builder.Services.AddRateLimiter(options =>
     {
-        policy.PermitLimit = 10;
-        policy.Window = TimeSpan.FromMinutes(1);
-        policy.QueueLimit = 0;
+        options.AddFixedWindowLimiter("auth", policy =>
+        {
+            policy.PermitLimit = 10;
+            policy.Window = TimeSpan.FromMinutes(1);
+            policy.QueueLimit = 0;
+        });
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     });
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-});
+}
 
 var app = builder.Build();
 
@@ -149,7 +152,10 @@ app.UseCors("AllowFrontend");
 // IMPORTANT: Authentication must come before Authorization
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseRateLimiter();
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    app.UseRateLimiter();
+}
 
 app.MapControllers();
 
@@ -177,3 +183,5 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+public partial class Program { }
