@@ -14,16 +14,18 @@ namespace EpiAttendance.Api.Services;
 public class AuthService : IAuthService
 {
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly JwtSettings _jwtSettings;
 
-    public AuthService(UserManager<ApplicationUser> userManager, IOptions<JwtSettings> jwtSettings)
+    public AuthService(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IOptions<JwtSettings> jwtSettings)
     {
         _userManager = userManager;
+        _signInManager = signInManager;
         _jwtSettings = jwtSettings.Value;
     }
     public async Task<(bool Success, string? Message, AuthResponseDTO? Response)> RegisterAsync(RegisterRequestDTO dto)
     {
-        var existingUser = _userManager.FindByEmailAsync(dto.Email);
+        var existingUser = await _userManager.FindByEmailAsync(dto.Email);
         if (existingUser != null)
             return (false, "User with this email already exists", null);
 
@@ -62,8 +64,12 @@ public class AuthService : IAuthService
         if (user == null)
             return (false, "Invalid username or password", null);
         
-        var isPasswordValid = await _userManager.CheckPasswordAsync(user, dto.Password);
-        if (!isPasswordValid)
+        var signInResult = await _signInManager.PasswordSignInAsync(
+            user.UserName!, dto.Password, isPersistent: false, lockoutOnFailure: true);
+
+        if (signInResult.IsLockedOut)
+            return (false, "Account is temporarily locked. Try again later.", null);
+        if (!signInResult.Succeeded)
             return (false, "Invalid username or password", null);
 
         var token = GenerateJwtToken(user);
