@@ -1,0 +1,29 @@
+# Build outputs
+**/bin/
+**/obj/
+
+# User-specific IDE files
+.idea/
+.claude/
+.devcontainer/
+.github/
+*.user
+*.suo
+
+# Emacs temp files
+*~
+\#*\#
+
+# Environment / secrets
+appsettings.json
+appsettings.*.json
+!appsettings.Development.json
+
+# Project-specific exclusions
+*.pdf
+*.slnx
+docker-compose.yml
+
+# OS
+.DS_Store
+Thumbs.db
