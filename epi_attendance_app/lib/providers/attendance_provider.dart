@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../models/attendance_type.dart';
 import '../models/month_summary.dart';
 import 'auth_provider.dart';
 
@@ -16,3 +17,6 @@ final monthSummaryProvider =
   final api = ref.read(apiServiceProvider);
   return api.getMonthSummary(month.year, month.month);
 });
+
+/// The attendance type currently selected for paint mode, or null when inactive.
+final paintTypeProvider = StateProvider<AttendanceType?>((ref) => null);
