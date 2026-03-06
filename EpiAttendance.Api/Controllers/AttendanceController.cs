@@ -1,5 +1,4 @@
 using EpiAttendance.Api.DTOs;
-using EpiAttendance.Api.Models;
 using EpiAttendance.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

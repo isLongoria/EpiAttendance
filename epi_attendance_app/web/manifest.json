@@ -1,0 +1,12 @@
+{
+    "name": "EpiAttendance",
+    "short_name": "EpiAttendance",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#FFFFFF",
+    "theme_color": "#3D5AFE",
+    "description": "Office attendance tracker",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": []
+}
