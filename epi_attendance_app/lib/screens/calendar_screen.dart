@@ -117,7 +117,13 @@ class _CalendarBody extends ConsumerWidget {
           onDaySelected: (selectedDay, _) {
             final key = DateTime(
                 selectedDay.year, selectedDay.month, selectedDay.day);
-            _showDaySheet(context, selectedDay, recordMap[key]);
+            final existing = recordMap[key];
+            final paintType = ref.read(paintTypeProvider);
+            if (paintType != null) {
+              _applyType(context, ref, selectedDay, paintType, existing);
+            } else {
+              _showDaySheet(context, selectedDay, existing);
+            }
           },
           calendarBuilders: CalendarBuilders(
             defaultBuilder: (context, day, _) {
@@ -133,6 +139,9 @@ class _CalendarBody extends ConsumerWidget {
             outsideBuilder: (context, day, _) => const SizedBox.shrink(),
           ),
         ),
+
+        // ── Paint bar ───────────────────────────────────────────────────────
+        const _PaintBar(),
 
         // ── Legend ──────────────────────────────────────────────────────────
         Padding(
@@ -160,6 +169,72 @@ class _CalendarBody extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── Paint mode helpers ───────────────────────────────────────────────────────
+
+Future<void> _applyType(
+  BuildContext context,
+  WidgetRef ref,
+  DateTime day,
+  AttendanceType type,
+  AttendanceRecord? existing,
+) async {
+  final api = ref.read(apiServiceProvider);
+  final month = ref.read(selectedMonthProvider);
+  // Tapping the same type again toggles the day off.
+  final effectiveType =
+      (existing != null && existing.type == type) ? AttendanceType.na : type;
+  try {
+    if (effectiveType == AttendanceType.na && existing != null) {
+      await api.deleteAttendance(existing.id);
+    } else if (effectiveType != AttendanceType.na) {
+      await api.createOrUpdate(day, effectiveType);
+    }
+    ref.invalidate(monthSummaryProvider(month));
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update: $e')),
+      );
+    }
+  }
+}
+
+class _PaintBar extends ConsumerWidget {
+  const _PaintBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final paintType = ref.watch(paintTypeProvider);
+    const types = [
+      AttendanceType.attended,
+      AttendanceType.pto,
+      AttendanceType.holiday,
+      AttendanceType.permission,
+    ];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Wrap(
+        spacing: 6,
+        children: [
+          ...types.map((t) => ChoiceChip(
+                label: Text(t.label),
+                selected: paintType == t,
+                selectedColor: _typeColor(t),
+                onSelected: (on) =>
+                    ref.read(paintTypeProvider.notifier).state = on ? t : null,
+              )),
+          if (paintType != null)
+            ActionChip(
+              label: const Text('✕ Clear'),
+              onPressed: () =>
+                  ref.read(paintTypeProvider.notifier).state = null,
+            ),
+        ],
+      ),
     );
   }
 }
