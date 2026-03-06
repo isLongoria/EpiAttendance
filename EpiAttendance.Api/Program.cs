@@ -71,6 +71,10 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+// Health checks
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>();
+
 // Register application services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAttendanceService, AttendanceService>();
@@ -111,15 +115,12 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Configure CORS
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? ["http://localhost:8080"];
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend", policy =>
-    {
-        policy.WithOrigins("http://localhost:8080", "http://127.0.0.1:8080")
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
-    });
+    options.AddDefaultPolicy(policy =>
+        policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials());
 });
 
 if (!builder.Environment.IsEnvironment("Testing"))
@@ -139,14 +140,26 @@ if (!builder.Environment.IsEnvironment("Testing"))
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler(errorApp =>
+    {
+        errorApp.Run(async context =>
+        {
+            context.Response.StatusCode = 500;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new { message = "An unexpected error occurred." });
+        });
+    });
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-
-app.UseCors("AllowFrontend");
+app.UseCors();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -162,6 +175,7 @@ if (!app.Environment.IsEnvironment("Testing"))
 }
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 // Ensure database is created and migrations are applied
 using (var scope = app.Services.CreateScope())
@@ -187,3 +201,5 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+public partial class Program { }
